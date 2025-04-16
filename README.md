@@ -1,46 +1,64 @@
-# Getting Started with Create React App
+# Courses
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A React application for managing and displaying language learning courses with interactive translation components.
 
-## Available Scripts
+## Features
 
-In the project directory, you can run:
+- Course listing and management
+- Lesson viewing with outcomes
+- Interactive translation interface with:
+  - Dynamic constituent parsing
+  - Multiple dropdown components
+  - Flexible sentence structure handling
 
-### `npm start`
+## Tech Stack
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+- React
+- TypeScript
+- Material-UI
+- Airtable (for data storage)
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+## Setup
 
-### `npm test`
+1. Clone the repository:
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+```bash
+git clone https://github.com/PetaKirikiri/Courses.git
+cd Courses
+```
 
-### `npm run build`
+2. Install dependencies:
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+```bash
+npm install
+```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+3. Create a `.env` file based on `.env.example` and add your Airtable credentials:
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+```
+REACT_APP_AIRTABLE_API_KEY=your_api_key
+REACT_APP_AIRTABLE_BASE_ID=your_base_id
+```
 
-### `npm run eject`
+4. Start the development server:
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+```bash
+npm start
+```
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+## Project Structure
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+- `/src/components` - React components
+  - `/Constituent` - Constituent component for translation
+  - `/Course` - Course-related components
+  - `/Dropdowns` - Reusable dropdown components
+  - `/Lessons` - Lesson-related components
+  - `/Translation` - Translation interface components
+- `/src/context` - React context providers
+- `/src/db` - Database integration (Airtable)
+- `/src/pages` - Page components
+- `/src/styles` - CSS styles
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+## License
 
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
+MIT
