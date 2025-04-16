@@ -1,0 +1,34 @@
+/* Page width constraint - source of truth */
+.page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+/* Narrow page variant */
+.page-narrow {
+  max-width: 800px;
+}
+
+/* Headers */
+h1, h2, h3, h4, h5, h6 {
+  text-align: center;
+  margin: 0;
+  padding: 0;
+}
+
+h1 {
+  font-size: 32px;
+  margin-bottom: 24px;
+}
+
+h2 {
+  font-size: 24px;
+  margin-bottom: 20px;
+}
+
+h3 {
+  font-size: 20px;
+  margin-bottom: 16px;
+} 

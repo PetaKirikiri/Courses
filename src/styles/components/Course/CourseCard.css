@@ -1,0 +1,47 @@
+.courseCard {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  margin-bottom: 16px;
+}
+
+.courseTitle {
+  font-size: 18px;
+  margin: 0 0 8px 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e0e0e0;
+  text-align: center;
+}
+
+.lessonList {
+  list-style-type: disc !important;
+  padding-left: 24px !important;
+  margin: 0;
+}
+
+.lessonItem {
+  padding: 2px 0;
+  margin: 0;
+  text-decoration: none;
+  color: #1976d2;
+  display: list-item !important;
+  list-style-type: disc !important;
+}
+
+.lessonItem:hover {
+  background-color: rgba(25, 118, 210, 0.08);
+}
+
+.lessonItem .MuiListItemText-root {
+  margin: 0;
+}
+
+.lessonItem .MuiListItemText-primary {
+  color: #1976d2;
+  font-size: 14px;
+  line-height: 1.2;
+}

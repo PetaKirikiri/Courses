@@ -1,0 +1,32 @@
+.lessonPage {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Each LessonContainer will have a white background and shadow */
+.lessonPage > div {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.lessonContent {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.lessonDetails {
+  background-color: #fff;
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+@media (max-width: 768px) {
+  .lessonContent {
+    grid-template-columns: 1fr;
+  }
+} 
