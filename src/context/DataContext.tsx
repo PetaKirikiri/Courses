@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useContext, useMemo, useRef } from 'react';
 import { db } from '../db/airtable';
 
 // Base record type that all records extend
@@ -16,7 +16,7 @@ export interface Lesson extends BaseRecord {
   display_name: string;
   courses: string[];
   lesson_outcomes?: string;
-  sentence_structures?: string[];  // Changed to plural and array type
+  sentence_structures?: string[];
   available_vocabulary?: {
     verbs?: string[];
     nouns?: string[];
@@ -43,6 +43,14 @@ export interface Pronoun extends BaseRecord {
   display_name: string;
 }
 
+export interface Determiner extends BaseRecord {
+  display_name: string;
+}
+
+export interface ConcreteNoun extends BaseRecord {
+  display_name: string;
+}
+
 export interface Constituent {
   id: string;
   Name: string;
@@ -55,10 +63,17 @@ export interface DataContextType {
   tenseMarkers: TenseMarker[];
   verbs: Verb[];
   pronouns: Pronoun[];
+  determiners: Determiner[];
+  concreteNouns: ConcreteNoun[];
   constituents: Constituent[];
   courses: Course[];
   loading: boolean;
   error: string | null;
+  get: (path: string) => any;
+  lessonMap: Record<string, Lesson>;
+  courseMap: Record<string, Course>;
+  sentenceStructureMap: Record<string, SentenceStructure>;
+  constituentMap: Record<string, Constituent>;
 }
 
 export const DataContext = createContext<DataContextType>({
@@ -67,10 +82,17 @@ export const DataContext = createContext<DataContextType>({
   tenseMarkers: [],
   verbs: [],
   pronouns: [],
+  determiners: [],
+  concreteNouns: [],
   constituents: [],
   courses: [],
   loading: true,
-  error: null
+  error: null,
+  get: () => null,
+  lessonMap: {},
+  courseMap: {},
+  sentenceStructureMap: {},
+  constituentMap: {}
 });
 
 export const useData = () => {
@@ -81,54 +103,52 @@ export const useData = () => {
   return context;
 };
 
+// Simple helper to safely get nested object properties
+const getNestedValue = (obj: any, path: string): any => {
+  return path.split('.').reduce((current, key) => {
+    // Handle array access with [index]
+    if (key.includes('[') && key.includes(']')) {
+      const arrayKey = key.split('[')[0];
+      const index = parseInt(key.split('[')[1].split(']')[0]);
+      return current?.[arrayKey]?.[index];
+    }
+    return current?.[key];
+  }, obj);
+};
+
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [lessons, setLessons] = useState<Lesson[]>([]);
-  const [sentenceStructures, setSentenceStructures] = useState<SentenceStructure[]>([]);
-  const [tenseMarkers, setTenseMarkers] = useState<TenseMarker[]>([]);
-  const [verbs, setVerbs] = useState<Verb[]>([]);
-  const [pronouns, setPronouns] = useState<Pronoun[]>([]);
-  const [constituents, setConstituents] = useState<Constituent[]>([]);
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const cache = useRef(db.getCachedRecords('courses'));
+  
+  // Read all data from cache
+  const lessons = db.getCachedRecords<Lesson>('lessons');
+  const sentenceStructures = db.getCachedRecords<SentenceStructure>('sentence_structures');
+  const tenseMarkers = db.getCachedRecords<TenseMarker>('tense_markers');
+  const verbs = db.getCachedRecords<Verb>('verbs');
+  const pronouns = db.getCachedRecords<Pronoun>('pronouns');
+  const determiners = db.getCachedRecords<Determiner>('determiners');
+  const concreteNouns = db.getCachedRecords<ConcreteNoun>('concrete_nouns');
+  const constituents = db.getCachedRecords<Constituent>('constituents');
+  const courses = db.getCachedRecords<Course>('courses');
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [
-          lessonsData,
-          sentenceStructuresData,
-          tenseMarkersData,
-          verbsData,
-          pronounsData,
-          constituentsData,
-          coursesData
-        ] = await Promise.all([
-          db.getRecords<Lesson>('lessons'),
-          db.getRecords<SentenceStructure>('sentence_structures'),
-          db.getRecords<TenseMarker>('tense_markers'),
-          db.getRecords<Verb>('verbs'),
-          db.getRecords<Pronoun>('pronouns'),
-          db.getRecords<Constituent>('constituents'),
-          db.getRecords<Course>('courses')
-        ]);
+  // Create lookup maps
+  const lessonMap = useMemo(() => 
+    Object.fromEntries(lessons.map(l => [l.id, l])), [lessons]
+  );
 
-        setLessons(lessonsData);
-        setSentenceStructures(sentenceStructuresData);
-        setTenseMarkers(tenseMarkersData);
-        setVerbs(verbsData);
-        setPronouns(pronounsData);
-        setConstituents(constituentsData);
-        setCourses(coursesData);
-        setLoading(false);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred');
-        setLoading(false);
-      }
-    };
+  const courseMap = useMemo(() => 
+    Object.fromEntries(courses.map(c => [c.id, c])), [courses]
+  );
 
-    fetchData();
-  }, []);
+  const sentenceStructureMap = useMemo(() => 
+    Object.fromEntries(sentenceStructures.map(s => [s.id, s])), [sentenceStructures]
+  );
+
+  const constituentMap = useMemo(() => 
+    Object.fromEntries(constituents.map(c => [c.id, c])), [constituents]
+  );
+
+  // Helper function to get nested data
+  const get = (path: string) => getNestedValue(cache.current, path);
 
   return (
     <DataContext.Provider value={{
@@ -137,10 +157,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       tenseMarkers,
       verbs,
       pronouns,
+      determiners,
+      concreteNouns,
       constituents,
       courses,
-      loading,
-      error
+      loading: false,
+      error: null,
+      get,
+      lessonMap,
+      courseMap,
+      sentenceStructureMap,
+      constituentMap
     }}>
       {children}
     </DataContext.Provider>

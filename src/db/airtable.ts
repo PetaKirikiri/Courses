@@ -22,23 +22,6 @@ class AirtableDB {
   private readonly SCHEMA_CACHE_KEY = "airtable_schema_cache";
   private fetchingTables: Set<string> = new Set();
 
-  // Define valid tables and their relationships
-  private readonly TABLE_RELATIONSHIPS = {
-    courses: ["lessons"],
-    lessons: [
-      "courses",
-      "sentence_structures",
-      "tense_markers",
-      "verbs",
-      "pronouns",
-    ],
-    sentence_structures: [],
-    tense_markers: [],
-    verbs: [],
-    pronouns: [],
-    constituents: [],
-  };
-
   private constructor() {
     this.loadFromLocalStorage();
   }
@@ -47,25 +30,12 @@ class AirtableDB {
     const savedCache = localStorage.getItem(this.CACHE_KEY);
     const savedSchemaCache = localStorage.getItem(this.SCHEMA_CACHE_KEY);
 
-    let needsRefresh = false;
-
     if (savedCache) {
       try {
         this.dataCache = JSON.parse(savedCache);
-
-        const missingTables = Object.keys(this.TABLE_RELATIONSHIPS).filter(
-          (table) => !this.dataCache[table]
-        );
-
-        if (missingTables.length > 0) {
-          needsRefresh = true;
-        }
       } catch (e) {
         this.dataCache = {};
-        needsRefresh = true;
       }
-    } else {
-      needsRefresh = true;
     }
 
     if (savedSchemaCache) {
@@ -74,14 +44,6 @@ class AirtableDB {
       } catch (e) {
         this.schemaCache = {};
       }
-    }
-
-    if (needsRefresh) {
-      this.dataCache = {};
-      this.schemaCache = {};
-      localStorage.removeItem(this.CACHE_KEY);
-      localStorage.removeItem(this.SCHEMA_CACHE_KEY);
-      this.refreshCache().catch(() => {});
     }
   }
 
@@ -97,21 +59,14 @@ class AirtableDB {
     processedTables: Set<string>
   ): Promise<any> {
     const resolvedRecord = { ...record };
-    const validTables = new Set([
-      "courses",
-      "lessons",
-      "tense_markers",
-      "verbs",
-      "pronouns",
-      "sentence_structures",
-      "constituents",
-    ]);
 
     for (const [fieldName, value] of Object.entries(record)) {
-      if (!validTables.has(fieldName)) {
+      // Skip non-linked fields
+      if (!value || (typeof value !== "string" && !Array.isArray(value))) {
         continue;
       }
 
+      // Handle single linked record
       if (typeof value === "string" && value.startsWith("rec")) {
         if (!processedTables.has(fieldName)) {
           processedTables.add(fieldName);
@@ -127,7 +82,9 @@ class AirtableDB {
             processedTables
           );
         }
-      } else if (
+      }
+      // Handle array of linked records
+      else if (
         Array.isArray(value) &&
         value.length > 0 &&
         typeof value[0] === "string" &&
@@ -176,19 +133,6 @@ class AirtableDB {
 
     try {
       const records = await base(tableName).select().all();
-
-      // Log raw data for debugging
-      if (tableName === "constituents") {
-        console.log(
-          "[Airtable] Raw constituent records:",
-          records.map((record) => ({
-            id: record.id,
-            fieldNames: Object.keys(record.fields),
-            rawFields: record.fields,
-          }))
-        );
-      }
-
       const data = records.map((record) => ({
         id: record.id,
         ...record.fields,
@@ -214,40 +158,6 @@ class AirtableDB {
         JSON.stringify(this.schemaCache)
       );
     } catch (e) {}
-  }
-
-  public async refreshCache() {
-    this.dataCache = {};
-    this.schemaCache = {};
-    localStorage.removeItem(this.CACHE_KEY);
-    localStorage.removeItem(this.SCHEMA_CACHE_KEY);
-
-    try {
-      const courses = await this.getRecords("courses");
-
-      const requiredTables = [
-        "lessons",
-        "tense_markers",
-        "verbs",
-        "pronouns",
-        "sentence_structures",
-      ];
-      await Promise.all(requiredTables.map((table) => this.getRecords(table)));
-
-      const processedTables = new Set(["courses", ...requiredTables]);
-      const resolvedCourses = await Promise.all(
-        courses.map((course) =>
-          this.resolveLinkedRecords(course, processedTables)
-        )
-      );
-
-      this.dataCache["courses"] = resolvedCourses;
-      this.saveCache();
-
-      return resolvedCourses;
-    } catch (err) {
-      throw new Error("Failed to refresh cache");
-    }
   }
 
   public clearCache() {

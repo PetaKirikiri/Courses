@@ -14,13 +14,13 @@ import '../styles/pages/LessonPage.css';
 export const LessonPage: React.FC = () => {
   const navigate = useNavigate();
   const { lessonId } = useParams<{ lessonId: string }>();
-  const { lessons, loading } = useData();
+  const { lessonMap, loading } = useData();
 
   if (loading) {
     return <Typography>Loading...</Typography>;
   }
 
-  const lesson = lessons.find(l => l.id === lessonId);
+  const lesson = lessonId ? lessonMap[lessonId] : undefined;
 
   if (!lesson) {
     return <Typography>Lesson not found</Typography>;

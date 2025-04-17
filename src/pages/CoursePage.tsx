@@ -10,12 +10,12 @@ import '../styles/pages/CoursePage.css';
 const CoursePage: React.FC = () => {
   const { courses, loading } = useData();
 
-  const handleRefresh = async () => {
+  const handleRefresh = () => {
     try {
-      await db.refreshCache();
+      db.clearCache();
       window.location.reload();
     } catch (error) {
-      console.error('Failed to refresh cache:', error);
+      console.error('Failed to clear cache:', error);
     }
   };
 
