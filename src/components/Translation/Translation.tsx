@@ -1,161 +1,141 @@
-import React, { useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import Typography from '@mui/material/Typography';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useData } from '../../context/DataContext';
-import Constituent from '../Constituent/Constituent';
+import { Typography } from '@mui/material';
+import { DragDropContext, Droppable, DropResult } from 'react-beautiful-dnd';
+import { VerbConstituent, SubjectConstituent, ObjectConstituent, NominalConstituent } from '../Constituents/constituentExports';
+
+interface TranslationProps {
+  sentenceStructureId: string;
+}
 
 interface ConstituentState {
   id: string;
   type: string;
   schema: string;
-  isNounPronoun: boolean;
 }
 
-const Translation: React.FC = () => {
-  const {
-    lessons,
-    sentenceStructures,
-    constituents
-  } = useData();
-  
-  const { lessonId } = useParams<{ lessonId: string }>();
+export const Translation: React.FC<TranslationProps> = ({ sentenceStructureId }) => {
+  const { getTranslationData } = useData();
   const [constituentStates, setConstituentStates] = useState<ConstituentState[]>([]);
-
-  // Get the current lesson and its sentence structure from cache
-  const currentLesson = useMemo(() => {
-    const lesson = lessons.find(l => l.id === lessonId);
-    return lesson;
-  }, [lessons, lessonId]);
+  const [isLoading, setIsLoading] = useState(true);
   
-  // Get the sentence structure from cache
-  const structure = useMemo(() => {
-    const structureId = currentLesson?.sentence_structures?.[0];
-    if (!structureId) {
-      return null;
+  const translationData = useMemo(() => 
+    getTranslationData(sentenceStructureId),
+    [getTranslationData, sentenceStructureId]
+  );
+
+  useEffect(() => {
+    if (!translationData || !translationData.constituents) {
+      setIsLoading(false);
+      return;
     }
-
-    const found = sentenceStructures.find(s => s.id === structureId);
-    return found;
-  }, [currentLesson?.sentence_structures, sentenceStructures]);
-
-  // Get the constituent schemas for each part
-  const requiredConstituents = useMemo(() => {
-    if (!structure?.sentence_schema) {
-      return [];
+    
+    const initialStates = translationData.constituents
+      .map((constituent) => {
+        const type = constituent.Name || constituent.name;
+        if (!type) return null;
+        
+        return {
+          id: constituent.id,
+          type,
+          schema: constituent.constituent_schema
+        };
+      })
+      .filter((state): state is ConstituentState => state !== null);
+    
+    if (initialStates.length > 0) {
+      setConstituentStates(initialStates);
     }
+    setIsLoading(false);
+  }, [translationData]);
 
-    // Get the constituent types directly from the sentence schema
-    const constituentTypes = structure.sentence_schema
-      .split(',')
-      .map(s => s.trim())
-      .filter(s => s.length > 0);
+  const handleDragEnd = useCallback((result: DropResult) => {
+    if (!result.destination) return;
+    const sourceIndex = result.source.index;
+    const destinationIndex = result.destination.index;
 
-    // Find the matching constituent schemas
-    const foundConstituents = constituentTypes.map(type => {
-      const constituent = constituents.find(c => c.Name === type);
-      if (!constituent) {
-        console.warn(`No constituent found for type: ${type}`);
-      }
-      return constituent;
-    }).filter((c): c is typeof constituents[0] => c !== undefined);
-
-    // Initialize constituent states if not already set
-    if (constituentStates.length === 0) {
-      const orderedConstituents = foundConstituents.map(c => ({
-        id: c.id,
-        type: c.Name,
-        schema: c.constituent_schema,
-        isNounPronoun: c.Name === 'noun_pronoun'
-      }));
-
-      setConstituentStates(orderedConstituents);
-    }
-
-    return foundConstituents;
-  }, [structure?.sentence_schema, constituents, constituentStates.length]);
-
-  // Error states
-  if (!currentLesson) {
-    return <Typography color="error">Lesson not found</Typography>;
-  }
-
-  if (!structure) {
-    return <Typography color="error">Sentence structure not found</Typography>;
-  }
-
-  if (!structure.sentence_schema) {
-    return <Typography color="error">No sentence schema defined</Typography>;
-  }
-
-  // Calculate total dropdowns for proportional widths
-  const totalDropdowns = constituentStates.reduce((total, constituent) => {
-    if (constituent.type.includes('noun_')) {
-      // For noun constituents, check if it's in pronoun mode
-      return total + (constituent.isNounPronoun ? 1 : 2);
-    }
-    // For other constituents, use their original schema
-    return total + constituent.schema.split(',').length;
-  }, 0);
-
-  const handleConstituentTypeChange = (constituentId: string, newType: string) => {
-    console.log(`Type change for ${constituentId}: ${newType}`);
-    setConstituentStates(prev => {
-      const newStates = prev.map(cs => 
-        cs.id === constituentId
-          ? { ...cs, isNounPronoun: newType === 'noun_pronoun' }
-          : cs
-      );
+    setConstituentStates(prevStates => {
+      const newStates = Array.from(prevStates);
+      const [reorderedItem] = newStates.splice(sourceIndex, 1);
+      newStates.splice(destinationIndex, 0, reorderedItem);
       return newStates;
     });
-  };
+  }, []);
+
+  const isInCorrectPosition = useCallback((index: number, id: string) => {
+    if (!translationData?.constituents) return false;
+    return translationData.constituents[index]?.id === id;
+  }, [translationData]);
+
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
+
+  if (!translationData) {
+    return <div>No sentence structure found</div>;
+  }
+
+  const { constituents, sentence_name } = translationData;
+
+  if (!constituents || constituents.length === 0) {
+    return <div>No constituents found</div>;
+  }
+
+  // Only render the drag and drop context when we have data
+  if (constituentStates.length === 0) {
+    return <div>No constituents to display</div>;
+  }
 
   return (
     <div style={{ padding: '20px' }}>
       <Typography variant="h6" gutterBottom align="center">
-        {structure.sentence_name}
+        {sentence_name}
       </Typography>
       
-      <div style={{ 
-        display: 'flex', 
-        gap: '20px',
-        width: '100%',
-        justifyContent: 'center'
-      }}>
-        {constituentStates.map((constituent) => {
-          let dropdownCount;
-          let activeSchema = constituent.schema;
-
-          if (constituent.type.includes('noun_')) {
-            // For noun constituents, adjust schema based on toggle state
-            dropdownCount = constituent.isNounPronoun ? 1 : 2;
-            activeSchema = constituent.isNounPronoun ? 'pronouns' : 'determiners,concrete_nouns';
-          } else {
-            // For other constituents, use their original schema
-            dropdownCount = constituent.schema.split(',').length;
-          }
-
-          console.log(`Constituent ${constituent.type} using schema: ${activeSchema}`);
-
-          const width = `${(dropdownCount / totalDropdowns) * 100}%`;
-          
-          return (
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <Droppable 
+          droppableId={sentenceStructureId}
+          direction="horizontal"
+          isDropDisabled={false}
+          isCombineEnabled={false}
+          ignoreContainerClipping={false}
+        >
+          {(provided) => (
             <div 
-              key={constituent.id} 
+              ref={provided.innerRef}
+              {...provided.droppableProps}
               style={{ 
-                width: width,
-                maxWidth: width,
-                transition: 'width 0.3s ease-in-out'
+                display: 'flex', 
+                gap: '20px',
+                width: '100%',
+                justifyContent: 'center'
               }}
             >
-              <Constituent 
-                type={constituent.type}
-                schema={activeSchema}
-                onTypeChange={(newType) => handleConstituentTypeChange(constituent.id, newType)}
-              />
+              {constituentStates.map((constituentState, index) => {
+                const type = constituentState.type.toLowerCase();
+                const props = {
+                  type: constituentState.type,
+                  schema: constituentState.schema,
+                  isInCorrectPosition: isInCorrectPosition(index, constituentState.id),
+                  index
+                };
+
+                if (type === 'verbs') {
+                  return <VerbConstituent key={constituentState.id} {...props} />;
+                }
+                if (type === 'noun_pronoun') {
+                  return <SubjectConstituent key={constituentState.id} {...props} />;
+                }
+                if (type.startsWith('object_')) {
+                  return <ObjectConstituent key={constituentState.id} {...props} />;
+                }
+                return <NominalConstituent key={constituentState.id} {...props} />;
+              })}
+              {provided.placeholder}
             </div>
-          );
-        })}
-      </div>
+          )}
+        </Droppable>
+      </DragDropContext>
     </div>
   );
 };
