@@ -45,11 +45,21 @@ export interface Pronoun extends BaseRecord {
 }
 
 export interface Determiner extends BaseRecord {
-  display_name: string;
+  display_name?: string;
+  Name: string;
+  english?: string;
 }
 
 export interface ConcreteNoun extends BaseRecord {
-  display_name: string;
+  display_name?: string;
+  Name: string;
+  english?: string;
+}
+
+export interface ObjectMarker extends BaseRecord {
+  display_name?: string;
+  Name: string;
+  english?: string;
 }
 
 export interface Constituent extends BaseRecord {
@@ -74,6 +84,7 @@ export interface DataContextType {
   pronouns: Pronoun[];
   determiners: Determiner[];
   concreteNouns: ConcreteNoun[];
+  objectMarkers: ObjectMarker[];
   constituents: Constituent[];
   courses: Course[];
   loading: boolean;
@@ -103,6 +114,7 @@ export const DataContext = createContext<DataContextType>({
   pronouns: [],
   determiners: [],
   concreteNouns: [],
+  objectMarkers: [],
   constituents: [],
   courses: [],
   loading: true,
@@ -166,6 +178,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const pronouns = db.getCachedRecords<Pronoun>('pronouns');
   const determiners = db.getCachedRecords<Determiner>('determiners');
   const concreteNouns = db.getCachedRecords<ConcreteNoun>('concrete_nouns');
+  const objectMarkers = db.getCachedRecords<ObjectMarker>('object_markers');
   const constituents = db.getCachedRecords<Constituent>('constituents');
   const courses = db.getCachedRecords<Course>('courses');
 
@@ -251,6 +264,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       pronouns,
       determiners,
       concreteNouns,
+      objectMarkers,
       constituents,
       courses,
       loading,

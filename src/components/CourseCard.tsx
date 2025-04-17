@@ -9,25 +9,33 @@ interface CourseCardProps {
 }
 
 const CourseCard: React.FC<CourseCardProps> = ({ course }) => {
-  const { lessons: allLessons } = useData();
+  const { getCourseCardData } = useData();
+  const courseData = getCourseCardData(course.id);
   
-  // Create a map for quick lesson lookup
-  const lessonMap = new Map(allLessons.map(lesson => [lesson.id, lesson]));
-  
-  // Get lessons in the order specified by course.lessons
-  const courseLessons = course.lessons
-    .map(id => lessonMap.get(id))
-    .filter((lesson): lesson is NonNullable<typeof lesson> => lesson != null);
+  if (!courseData) {
+    return (
+      <div className="courseCard">
+        <div className="courseContent">
+          <Typography variant="h5" component="h2" className="courseTitle">
+            {course.course_name}
+          </Typography>
+          <div className="lessonsList">
+            <Typography>No lessons available</Typography>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="courseCard">
       <div className="courseContent">
         <Typography variant="h5" component="h2" className="courseTitle">
-          {course.course_name}
+          {courseData.course_name}
         </Typography>
         <div className="lessonsList">
           <ul>
-            {courseLessons.map((lesson) => (
+            {courseData.lessons.map((lesson) => (
               <li key={lesson.id} className="lessonItem">
                 <Link to={`/lesson/${lesson.id}`}>
                   {lesson.display_name || lesson.lesson_name}

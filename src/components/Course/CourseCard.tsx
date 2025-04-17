@@ -1,32 +1,25 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Course, useData } from '../../context/DataContext';
+import { Course, Lesson } from '../../context/DataContext';
 import '../../styles/components/Course/CourseCard.css';
 
 interface CourseCardProps {
-  course: Course;
+  id: string;
+  name: string;
+  lessons: Lesson[];
 }
 
-const CourseCard: React.FC<CourseCardProps> = ({ course }) => {
-  const { id, course_name, lessons = [] } = course;
-  const { lessons: allLessons } = useData();
-
-  // Create a map of lesson IDs to display names
-  const lessonMap = new Map(
-    allLessons.map(lesson => [lesson.id, lesson.display_name])
-  );
-
+const CourseCard: React.FC<CourseCardProps> = ({ id, name, lessons }) => {
   return (
-    <div className="courseCard">
-      <h2 className="courseTitle">{course_name}</h2>
-      <div className="lessonsList">
-        <h3>Lessons</h3>
+    <div className="course-card">
+      <h2>{name}</h2>
+      <div className="lessons-list">
         <ul>
           {lessons && lessons.length > 0 ? (
-            lessons.map((lessonId: string) => (
-              <li key={lessonId}>
-                <Link to={`/courses/${id}/lessons/${lessonId}`}>
-                  {lessonMap.get(lessonId) || 'Untitled Lesson'}
+            lessons.map((lesson: Lesson) => (
+              <li key={lesson.id}>
+                <Link to={`/courses/${id}/lessons/${lesson.id}`}>
+                  {lesson.display_name || lesson.lesson_name || 'Untitled Lesson'}
                 </Link>
               </li>
             ))
