@@ -1,8 +1,15 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import Typography from '@mui/material/Typography';
 import { useData } from '../../context/DataContext';
 import Constituent from '../Constituent/Constituent';
+
+interface ConstituentState {
+  id: string;
+  type: string;
+  schema: string;
+  isNounPronoun: boolean;
+}
 
 const Translation: React.FC = () => {
   const {
@@ -12,6 +19,7 @@ const Translation: React.FC = () => {
   } = useData();
   
   const { lessonId } = useParams<{ lessonId: string }>();
+  const [constituentStates, setConstituentStates] = useState<ConstituentState[]>([]);
 
   // Get the current lesson and its sentence structure from cache
   const currentLesson = useMemo(() => {
@@ -36,20 +44,35 @@ const Translation: React.FC = () => {
       return [];
     }
 
-    // Get the constituent names from the sentence structure
-    const constituentNames = structure.sentence_schema
+    // Get the constituent types directly from the sentence schema
+    const constituentTypes = structure.sentence_schema
       .split(',')
       .map(s => s.trim())
       .filter(s => s.length > 0);
 
     // Find the matching constituent schemas
-    const foundConstituents = constituents.filter(c => {
-      const match = constituentNames.includes(c.Name);
-      return match;
-    });
+    const foundConstituents = constituentTypes.map(type => {
+      const constituent = constituents.find(c => c.Name === type);
+      if (!constituent) {
+        console.warn(`No constituent found for type: ${type}`);
+      }
+      return constituent;
+    }).filter((c): c is typeof constituents[0] => c !== undefined);
+
+    // Initialize constituent states if not already set
+    if (constituentStates.length === 0) {
+      const orderedConstituents = foundConstituents.map(c => ({
+        id: c.id,
+        type: c.Name,
+        schema: c.constituent_schema,
+        isNounPronoun: c.Name === 'noun_pronoun'
+      }));
+
+      setConstituentStates(orderedConstituents);
+    }
 
     return foundConstituents;
-  }, [structure?.sentence_schema, constituents]);
+  }, [structure?.sentence_schema, constituents, constituentStates.length]);
 
   // Error states
   if (!currentLesson) {
@@ -65,10 +88,26 @@ const Translation: React.FC = () => {
   }
 
   // Calculate total dropdowns for proportional widths
-  const totalDropdowns = requiredConstituents.reduce((total, constituent) => {
-    const dropdownCount = constituent.constituent_schema.split(',').length;
-    return total + dropdownCount;
+  const totalDropdowns = constituentStates.reduce((total, constituent) => {
+    if (constituent.type.includes('noun_')) {
+      // For noun constituents, check if it's in pronoun mode
+      return total + (constituent.isNounPronoun ? 1 : 2);
+    }
+    // For other constituents, use their original schema
+    return total + constituent.schema.split(',').length;
   }, 0);
+
+  const handleConstituentTypeChange = (constituentId: string, newType: string) => {
+    console.log(`Type change for ${constituentId}: ${newType}`);
+    setConstituentStates(prev => {
+      const newStates = prev.map(cs => 
+        cs.id === constituentId
+          ? { ...cs, isNounPronoun: newType === 'noun_pronoun' }
+          : cs
+      );
+      return newStates;
+    });
+  };
 
   return (
     <div style={{ padding: '20px' }}>
@@ -82,9 +121,21 @@ const Translation: React.FC = () => {
         width: '100%',
         justifyContent: 'center'
       }}>
-        {requiredConstituents.map((constituent) => {
-          const dropdownCount = constituent.constituent_schema.split(',').length;
-          // Adjust width calculation to account for gap
+        {constituentStates.map((constituent) => {
+          let dropdownCount;
+          let activeSchema = constituent.schema;
+
+          if (constituent.type.includes('noun_')) {
+            // For noun constituents, adjust schema based on toggle state
+            dropdownCount = constituent.isNounPronoun ? 1 : 2;
+            activeSchema = constituent.isNounPronoun ? 'pronouns' : 'determiners,concrete_nouns';
+          } else {
+            // For other constituents, use their original schema
+            dropdownCount = constituent.schema.split(',').length;
+          }
+
+          console.log(`Constituent ${constituent.type} using schema: ${activeSchema}`);
+
           const width = `${(dropdownCount / totalDropdowns) * 100}%`;
           
           return (
@@ -92,12 +143,14 @@ const Translation: React.FC = () => {
               key={constituent.id} 
               style={{ 
                 width: width,
-                maxWidth: width
+                maxWidth: width,
+                transition: 'width 0.3s ease-in-out'
               }}
             >
               <Constituent 
-                type={constituent.Name}
-                schema={constituent.constituent_schema}
+                type={constituent.type}
+                schema={activeSchema}
+                onTypeChange={(newType) => handleConstituentTypeChange(constituent.id, newType)}
               />
             </div>
           );
