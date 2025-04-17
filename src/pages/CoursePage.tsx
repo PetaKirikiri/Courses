@@ -9,13 +9,14 @@ import '../styles/pages/CoursePage.css';
 
 const CoursePage: React.FC = () => {
   const { courses, loading } = useData();
+  const [error, setError] = React.useState<string | null>(null);
 
-  const handleRefresh = () => {
+  const handleRefreshClick = async () => {
     try {
-      db.clearCache();
+      await db.clearCache();
       window.location.reload();
     } catch (error) {
-      console.error('Failed to clear cache:', error);
+      setError('Failed to clear cache');
     }
   };
 
@@ -40,7 +41,7 @@ const CoursePage: React.FC = () => {
         <h1>Courses</h1>
         <Button
           startIcon={<RefreshIcon />}
-          onClick={handleRefresh}
+          onClick={handleRefreshClick}
         >
           Refresh Data
         </Button>

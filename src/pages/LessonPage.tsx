@@ -20,10 +20,15 @@ export const LessonPage: React.FC = () => {
     return <Typography>Loading...</Typography>;
   }
 
-  const lesson = lessonId ? lessonMap[lessonId] : undefined;
+  const lesson = lessonId ? lessonMap[lessonId] : null;
+  const sentenceStructureId = lesson?.sentence_structures?.[0];
 
   if (!lesson) {
-    return <Typography>Lesson not found</Typography>;
+    return <div>Lesson not found</div>;
+  }
+
+  if (!sentenceStructureId) {
+    return <Typography>No sentence structure found for this lesson</Typography>;
   }
 
   return (
@@ -48,7 +53,7 @@ export const LessonPage: React.FC = () => {
       </LessonContainer>
 
       <LessonContainer>
-        <Translation />
+        <Translation sentenceStructureId={sentenceStructureId} />
       </LessonContainer>
     </div>
   );

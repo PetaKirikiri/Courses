@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useMemo, useRef } from 'react';
+import React, { createContext, useState, useContext, useMemo, useRef, useEffect, useCallback } from 'react';
 import { db } from '../db/airtable';
 
 // Base record type that all records extend
@@ -8,7 +8,7 @@ export interface BaseRecord {
 
 export interface SentenceStructure extends BaseRecord {
   sentence_name: string;
-  sentence_schema: string;  // comma-separated list of component types like "tense_markers,verbs,pronouns"
+  constituents: Constituent[];  // Array of linked constituent records
 }
 
 export interface Lesson extends BaseRecord {
@@ -27,7 +27,8 @@ export interface Lesson extends BaseRecord {
 
 export interface Course extends BaseRecord {
   course_name: string;
-  lessons: string[];
+  name?: string;  // Some records use name instead of course_name
+  lessons: Lesson[];  // This is now an array of resolved Lesson objects, not just strings
 }
 
 export interface TenseMarker extends BaseRecord {
@@ -51,10 +52,18 @@ export interface ConcreteNoun extends BaseRecord {
   display_name: string;
 }
 
-export interface Constituent {
+export interface Constituent extends BaseRecord {
   id: string;
   Name: string;
+  name?: string;  // Some records might use lowercase name
   constituent_schema: string;
+  parts_of_speech?: string[];  // Array of linked parts of speech records
+}
+
+export interface TranslationData {
+  id: string;
+  constituents: Constituent[];
+  sentence_name: string;
 }
 
 export interface DataContextType {
@@ -74,6 +83,16 @@ export interface DataContextType {
   courseMap: Record<string, Course>;
   sentenceStructureMap: Record<string, SentenceStructure>;
   constituentMap: Record<string, Constituent>;
+  getCourseCardData: (courseId: string) => {
+    id: string;
+    course_name: string;
+    lessons: Array<{
+      id: string;
+      display_name: string;
+      lesson_name: string;
+    }>;
+  } | null;
+  getTranslationData: (sentenceStructureId: string) => TranslationData | null;
 }
 
 export const DataContext = createContext<DataContextType>({
@@ -92,7 +111,9 @@ export const DataContext = createContext<DataContextType>({
   lessonMap: {},
   courseMap: {},
   sentenceStructureMap: {},
-  constituentMap: {}
+  constituentMap: {},
+  getCourseCardData: () => null,
+  getTranslationData: () => null
 });
 
 export const useData = () => {
@@ -117,7 +138,25 @@ const getNestedValue = (obj: any, path: string): any => {
 };
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const cache = useRef(db.getCachedRecords('courses'));
+
+  // Force refresh cache on mount
+  useEffect(() => {
+    const refreshData = async () => {
+      try {
+        setLoading(true);
+        await db.refreshCache();
+        setLoading(false);
+      } catch (err) {
+        setError('Failed to load data');
+        setLoading(false);
+      }
+    };
+
+    refreshData();
+  }, []);
   
   // Read all data from cache
   const lessons = db.getCachedRecords<Lesson>('lessons');
@@ -150,6 +189,59 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Helper function to get nested data
   const get = (path: string) => getNestedValue(cache.current, path);
 
+  // Specific helper for CourseCard data
+  const getCourseCardData = useCallback((courseId: string) => {
+    const course = courseMap[courseId];
+    if (!course) {
+      return null;
+    }
+
+    // The lessons are already resolved and nested in the course object
+    const lessonRecords = course.lessons.map(lesson => ({
+      id: lesson.id,
+      display_name: lesson.display_name,
+      lesson_name: lesson.lesson_name
+    }));
+
+    return {
+      id: course.id,
+      course_name: course.course_name || course.name || 'Untitled Course',
+      lessons: lessonRecords
+    };
+  }, [courseMap]);
+
+  const getTranslationData = useCallback((sentenceStructureId: string) => {
+    const sentenceStructure = sentenceStructureMap[sentenceStructureId];
+    
+    if (!sentenceStructure) {
+      return null;
+    }
+
+    // Resolve constituent IDs to full objects
+    const resolvedConstituents = sentenceStructure.constituents
+      .map(constituentId => {
+        if (typeof constituentId === 'string') {
+          return constituentMap[constituentId];
+        }
+        return constituentId;
+      })
+      .filter(constituent => constituent != null);
+
+    return {
+      id: sentenceStructure.id,
+      constituents: resolvedConstituents,
+      sentence_name: sentenceStructure.sentence_name
+    };
+  }, [sentenceStructureMap, constituentMap]);
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (error) {
+    return <div>Error: {error}</div>;
+  }
+
   return (
     <DataContext.Provider value={{
       lessons,
@@ -161,13 +253,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       concreteNouns,
       constituents,
       courses,
-      loading: false,
-      error: null,
+      loading,
+      error,
       get,
       lessonMap,
       courseMap,
       sentenceStructureMap,
-      constituentMap
+      constituentMap,
+      getCourseCardData,
+      getTranslationData
     }}>
       {children}
     </DataContext.Provider>
